@@ -4,7 +4,6 @@
 <div align="center">
   <img src="website/public/logo.png" alt="MONOMA Logo" width="300" height="auto">
 </div>
-**🏆 Built for Arbitrum Hackathon 2024**
 
 MONOMA is a cutting-edge cross-chain stablecoin settlement platform built on Arbitrum, designed specifically for merchants and businesses. It leverages Arbitrum's fast, low-cost infrastructure as the primary settlement destination, enabling seamless stablecoin transfers from multiple source chains with instant settlement and minimal fees.
 
