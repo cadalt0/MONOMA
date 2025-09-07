@@ -7,6 +7,15 @@
 
 MONOMA is a cutting-edge cross-chain stablecoin settlement platform built on Arbitrum, designed specifically for merchants and businesses. It leverages Arbitrum's fast, low-cost infrastructure as the primary settlement destination, enabling seamless stablecoin transfers from multiple source chains with instant settlement and minimal fees.
 
+
+## 🌐 Live Demo
+
+- **🚀 Deployed Website**: [http://monoma.vercel.app/](http://monoma.vercel.app/)
+- **📹 Demo Video (YouTube)**: [Watch on YouTube](https://youtu.be/xWXXI8PPLfI)
+- **📹 Demo Video (Google Drive)**: [Watch Demo](https://drive.google.com/file/d/1ioyxojq-YWU7ee0ZaYTqRgNiel8miDw5/view?usp=sharing)
+
+**Try it now!** Experience seamless cross-chain stablecoin settlement to Arbitrum with our live dApp.
+
 ## 🧠 MONOMA Architecture Mind Map
 
 ```
@@ -75,14 +84,6 @@ MONOMA is a cutting-edge cross-chain stablecoin settlement platform built on Arb
 
 🔄 FLOW: Source Chain → Burn Stablecoin → CCTP v2 → Attestation → Arbitrum → Mint → DeFi Ready
 ```
-
-## 🌐 Live Demo
-
-- **🚀 Deployed Website**: [http://monoma.vercel.app/](http://monoma.vercel.app/)
-- **📹 Demo Video (YouTube)**: [Watch on YouTube](https://youtu.be/xWXXI8PPLfI)
-- **📹 Demo Video (Google Drive)**: [Watch Demo](https://drive.google.com/file/d/1ioyxojq-YWU7ee0ZaYTqRgNiel8miDw5/view?usp=sharing)
-
-**Try it now!** Experience seamless cross-chain stablecoin settlement to Arbitrum with our live dApp.
 
 ## 🌟 Features
 
