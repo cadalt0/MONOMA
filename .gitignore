@@ -1,0 +1,21 @@
+# Dependencies and build output
+node_modules/
+.next/
+dist/
+build/
+.turbo/
+
+# OS
+.DS_Store
+
+# Env files (do not commit secrets)
+.env
+.env.*
+*.env
+*.env.*
+website/.env
+website/.env.*
+website/.env.local
+server/.env
+server/.env.*
+
