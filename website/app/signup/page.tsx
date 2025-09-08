@@ -18,6 +18,10 @@ export default function SignupPage() {
   const [arbitrumAddress, setArbitrumAddress] = useState("")
   const [createdAddresses, setCreatedAddresses] = useState<{ [key: string]: string }>({})
   const googleButtonRef = useRef<HTMLDivElement | null>(null)
+  const googleInitializedRef = useRef<boolean>(false)
+  const googleRenderedRef = useRef<boolean>(false)
+  const [googleUiReady, setGoogleUiReady] = useState<boolean>(false)
+  const [showGoogleNotice, setShowGoogleNotice] = useState<boolean>(false)
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
   const apiBaseUrl = process.env.NEXT_PUBLIC_API || ""
   const [addressError, setAddressError] = useState<string>("")
@@ -26,6 +30,7 @@ export default function SignupPage() {
   const [userEmail, setUserEmail] = useState<string>("")
   const [userSaved, setUserSaved] = useState<boolean>(false)
   const [checkingExisting, setCheckingExisting] = useState<boolean>(true)
+  // No custom click handler; we rely entirely on Google's rendered button
 
   // Available chains - only these 4 are selectable
   const availableChains = [
@@ -121,50 +126,60 @@ export default function SignupPage() {
     const load = () => {
       // @ts-expect-error - google may not be typed on window
       const google = window.google
-      if (!google || !googleButtonRef.current) return
-      google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: (resp: any) => {
-          try {
-            const token = resp?.credential as string | undefined
-            if (token) {
-              const [, payload] = token.split(".")
-              if (payload) {
-                const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")))
-                if (json?.email) {
-                  setUserEmail(json.email as string)
-                  try {
-                    localStorage.setItem("monomaEmail", json.email as string)
-                  } catch {}
-                }
-              }
-            }
-          } catch {}
-          // After capturing email, check DB for existing account
-          ;(async () => {
+      if (!google) return
+      if (!googleInitializedRef.current) {
+        google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: (resp: any) => {
             try {
-              const email = (localStorage.getItem("monomaEmail") || userEmail || "").trim()
-              if (email) {
-                const rec = await fetchMonomaUser(apiBaseUrl, email)
-                if (rec && rec.account) {
-                  router.push("/home")
-                  return
+              const token = resp?.credential as string | undefined
+              if (token) {
+                const [, payload] = token.split(".")
+                if (payload) {
+                  const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")))
+                  if (json?.email) {
+                    setUserEmail(json.email as string)
+                    try {
+                      localStorage.setItem("monomaEmail", json.email as string)
+                    } catch {}
+                  }
                 }
               }
             } catch {}
-            setStep("selection")
-          })()
-        },
-      })
-      google.accounts.id.renderButton(googleButtonRef.current, {
-        theme: "filled_black",
-        size: "large",
-        width: 360,
-        logo_alignment: "left",
-        type: "standard",
-        text: "continue_with",
-        shape: "pill",
-      })
+            // After capturing email, check DB for existing account
+            ;(async () => {
+              try {
+                const email = (localStorage.getItem("monomaEmail") || userEmail || "").trim()
+                if (email) {
+                  const rec = await fetchMonomaUser(apiBaseUrl, email)
+                  if (rec && rec.account) {
+                    router.push("/home")
+                    return
+                  }
+                }
+              } catch {}
+              setStep("selection")
+            })()
+          },
+        })
+        googleInitializedRef.current = true
+      }
+      if (googleButtonRef.current && !googleRenderedRef.current) {
+        try {
+          google.accounts.id.renderButton(googleButtonRef.current, {
+            theme: "filled_black",
+            size: "large",
+            width: 360,
+            logo_alignment: "left",
+            type: "standard",
+            text: "continue_with",
+            shape: "pill",
+          })
+          googleRenderedRef.current = true
+          setGoogleUiReady(true)
+          setShowGoogleNotice(false)
+        } catch {}
+      }
     }
 
     if (!existing) {
@@ -185,6 +200,100 @@ export default function SignupPage() {
       // no-op cleanup
     }
   }, [step, googleClientId])
+
+  useEffect(() => {
+    if (step !== "login") return
+    setShowGoogleNotice(false)
+    setGoogleUiReady(false)
+    const t = window.setTimeout(() => {
+      try {
+        const hasBtn = !!(googleButtonRef.current?.querySelector('[role="button"]') as HTMLDivElement | null)
+        if (!hasBtn) setShowGoogleNotice(true)
+      } catch {
+        setShowGoogleNotice(true)
+      }
+    }, 3500)
+    return () => window.clearTimeout(t)
+  }, [step])
+
+  const handleGoogleLogin = () => {
+    try {
+      // @ts-expect-error - google may not be typed on window
+      const google = window.google
+      // If the Google-rendered button exists, programmatically click it
+      const btn = googleButtonRef.current?.querySelector('[role="button"]') as HTMLDivElement | null
+      if (btn) {
+        btn.click()
+        return
+      }
+      // If not rendered yet, load script and render, then click
+      const existing = document.getElementById("google-gsi-client") as HTMLScriptElement | null
+      if (!existing) {
+        const script = document.createElement("script")
+        script.id = "google-gsi-client"
+        script.src = "https://accounts.google.com/gsi/client"
+        script.async = true
+        script.defer = true
+        script.onload = () => {
+          try {
+            const g = (window as unknown as { google?: any }).google
+            if (!g) return
+            if (!googleInitializedRef.current) {
+              g.accounts.id.initialize({
+                client_id: googleClientId,
+                callback: (resp: any) => {
+                  try {
+                    const token = resp?.credential as string | undefined
+                    if (token) {
+                      const [, payload] = token.split(".")
+                      if (payload) {
+                        const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")))
+                        if (json?.email) {
+                          setUserEmail(json.email as string)
+                          try {
+                            localStorage.setItem("monomaEmail", json.email as string)
+                          } catch {}
+                        }
+                      }
+                    }
+                  } catch {}
+                  ;(async () => {
+                    try {
+                      const email = (localStorage.getItem("monomaEmail") || userEmail || "").trim()
+                      if (email) {
+                        const rec = await fetchMonomaUser(apiBaseUrl, email)
+                        if (rec && rec.account) {
+                          router.push("/home")
+                          return
+                        }
+                      }
+                    } catch {}
+                    setStep("selection")
+                  })()
+                },
+              })
+              googleInitializedRef.current = true
+            }
+            if (googleButtonRef.current && !googleRenderedRef.current) {
+              g.accounts.id.renderButton(googleButtonRef.current, {
+                theme: "filled_black",
+                size: "large",
+                width: 360,
+                logo_alignment: "left",
+                type: "standard",
+                text: "continue_with",
+                shape: "pill",
+              })
+              googleRenderedRef.current = true
+            }
+            const buttonEl = googleButtonRef.current?.querySelector('[role="button"]') as HTMLDivElement | null
+            if (buttonEl) buttonEl.click()
+          } catch {}
+        }
+        document.body.appendChild(script)
+      }
+    } catch {}
+  }
 
   const handleChainToggle = (chainId: string) => {
     if (selectedChains.includes(chainId)) {
@@ -344,11 +453,21 @@ export default function SignupPage() {
                 <div className="space-y-4">
                   <h1 className="text-2xl md:text-3xl font-bold text-white">Welcome to Monoma</h1>
                   <p className="text-white/70 text-sm md:text-base">Sign in to create your multi-chain wallet</p>
-                  {googleClientId ? (
-                    <div ref={googleButtonRef} className="flex justify-center" />
-                  ) : (
-                    <p className="text-xs text-red-300">Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID</p>
-                  )}
+                  <div className="flex justify-center">
+                    <button
+                      onClick={handleGoogleLogin}
+                      className="inline-flex items-center gap-3 bg-white text-black font-medium rounded-full px-4 py-2 shadow hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-5 h-5">
+                        <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303C33.602 32.329 29.17 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.84 1.154 7.961 3.039l5.657-5.657C33.64 6.053 29.065 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
+                        <path fill="#FF3D00" d="M6.306 14.691l6.571 4.818C14.739 15.108 18.981 12 24 12c3.059 0 5.84 1.154 7.961 3.039l5.657-5.657C33.64 6.053 29.065 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
+                        <path fill="#4CAF50" d="M24 44c5.113 0 9.77-1.947 13.292-5.129l-6.146-5.2C29.11 35.091 26.715 36 24 36c-5.148 0-9.563-3.243-11.158-7.773l-6.51 5.02C9.639 39.556 16.284 44 24 44z"/>
+                        <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-1.095 3.246-3.414 5.866-6.157 7.258l.001-.001 6.146 5.2C33.146 41.886 38 38 40.889 33.222 42.24 30.659 43 27.45 43 24c0-1.341-.138-2.651-.389-3.917z"/>
+                      </svg>
+                      <span className="text-sm">Continue with Google</span>
+                    </button>
+                    <div ref={googleButtonRef} className="sr-only" aria-hidden />
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -590,6 +709,13 @@ export default function SignupPage() {
             )}
           </AnimatePresence>
         </div>
+        {showGoogleNotice && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+            <div className="rounded-full bg-black/70 text-white px-4 py-2 text-xs md:text-sm shadow">
+              Google login didn’t load. Please reload :)
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
